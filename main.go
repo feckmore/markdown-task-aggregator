@@ -10,6 +10,7 @@ import (
 	"path"
 	"regexp"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -26,11 +27,14 @@ type Task struct {
 	Text     string
 }
 
-const datePattern = `^(\d{4}-\d{2}-\d{2})`
-const dateHeaderPattern = `^\#+\s+(\d{4}-\d{2}-\d{2})`
-const markdownFilenamePattern = `(?i).md$`
-const taskPattern = `^\s*[-|+|\*]?\s*\[x|\s\]`
-const rootPath = "."
+const (
+	datePattern             = `^(\d{4}-\d{2}-\d{2})`
+	dateHeaderPattern       = `^\#+\s+(\d{4}-\d{2}-\d{2})`
+	markdownFilenamePattern = `(?i).md$`
+	taskPattern             = `^\s*[-|+|\*]?\s*\[x|\s\]`
+	rootPath                = "."
+	yearMonthDayLayout      = "2006-01-02"
+)
 
 func main() {
 	tasks := Tasks{}
@@ -97,7 +101,7 @@ func parseDate(pattern, text string, lastDate *time.Time) *time.Time {
 	re := regexp.MustCompile(pattern)
 	match := re.FindSubmatch([]byte(text))
 	if len(match) == 2 {
-		parsedDate, err := time.Parse("2006-01-02", string(match[1]))
+		parsedDate, err := time.Parse(yearMonthDayLayout, string(match[1]))
 		if err != nil {
 			return lastDate
 		}
@@ -138,7 +142,7 @@ func parseTask(date time.Time, filePath, line string) (*Task, bool) {
 
 func printTasks(tasks Tasks) {
 	for _, task := range tasks {
-		fmt.Println(task.Date, task.Text)
+		fmt.Println(task.Date.Format(yearMonthDayLayout), strings.TrimLeft(task.Text, " *-+"))
 	}
 
 	fmt.Println("Total:", len(tasks))
