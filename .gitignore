@@ -19,3 +19,7 @@
 
 # Go workspace file
 go.work
+
+# Exclude markdown files used for testing program
+*.md
+!README.md
