@@ -87,6 +87,16 @@ func findTasks(file File) Tasks {
 	return tasks
 }
 
+func (tasks Tasks) CompletedCount() int {
+	count := 0
+	for _, task := range tasks {
+		if task.Complete {
+			count++
+		}
+	}
+	return count
+}
+
 func markdownFilePaths(dirPath string) []File {
 	paths := []File{}
 	files, err := ioutil.ReadDir(dirPath)
@@ -183,6 +193,6 @@ func (tasks Tasks) WriteToFile(outputFilename string) {
 	}
 	defer file.Close()
 
-	fmt.Printf("writing %d tasks to file '%s'\n", len(tasks), outputFilename)
+	fmt.Printf("%d complted out of %d total tasks, writing to file '%s'\n", tasks.CompletedCount(), len(tasks), outputFilename)
 	file.WriteString(tasks.String())
 }
