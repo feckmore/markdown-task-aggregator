@@ -59,30 +59,6 @@ func main() {
 	tasks.WriteToFile(*outputFilename)
 }
 
-func markdownFilePaths(dirPath string) []File {
-	paths := []File{}
-	files, err := ioutil.ReadDir(dirPath)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, file := range files {
-		date := parseDateFromFile(file)
-		filename := file.Name()
-		filePath := path.Join(dirPath, filename)
-		if file.IsDir() {
-			paths = append(paths, markdownFilePaths(filePath)...)
-		} else {
-			isMarkdownFile, _ := regexp.MatchString(markdownFilenamePattern, filename)
-			if isMarkdownFile {
-				paths = append(paths, File{Date: date, Name: file.Name(), Path: filePath})
-			}
-		}
-	}
-
-	return paths
-}
-
 func findTasks(file File) Tasks {
 	tasks := Tasks{}
 	if file.Name == defaultOutputFilename {
@@ -109,6 +85,30 @@ func findTasks(file File) Tasks {
 	}
 
 	return tasks
+}
+
+func markdownFilePaths(dirPath string) []File {
+	paths := []File{}
+	files, err := ioutil.ReadDir(dirPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		date := parseDateFromFile(file)
+		filename := file.Name()
+		filePath := path.Join(dirPath, filename)
+		if file.IsDir() {
+			paths = append(paths, markdownFilePaths(filePath)...)
+		} else {
+			isMarkdownFile, _ := regexp.MatchString(markdownFilenamePattern, filename)
+			if isMarkdownFile {
+				paths = append(paths, File{Date: date, Name: file.Name(), Path: filePath})
+			}
+		}
+	}
+
+	return paths
 }
 
 func parseDate(pattern, text string, lastDate *time.Time) *time.Time {
