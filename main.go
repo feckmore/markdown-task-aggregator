@@ -24,6 +24,7 @@ type File struct {
 
 type Tasks []Task
 type Task struct {
+	Complete bool
 	Date     time.Time
 	FilePath string
 	Text     string
@@ -34,7 +35,8 @@ const (
 	dateHeaderPattern       = `^\#+\s+(\d{4}-\d{2}-\d{2})`
 	markdownFilenamePattern = `(?i).md$`
 	defaultOutputFilename   = `TASKS.md`
-	taskPattern             = `^\s*[-|+|\*]?\s*\[[x|\s]\]`
+	completedTaskPattern    = `^\s*[-|+|\*]?\s*\[x\]`
+	incompletedTaskPattern  = `^\s*[-|+|\*]?\s*\[\s+\]`
 	rootPath                = "."
 	yearMonthDayLayout      = "2006-01-02"
 )
@@ -139,9 +141,11 @@ func parseDateFromFile(file fs.FileInfo) *time.Time {
 }
 
 func parseTask(date time.Time, filePath, line string) (*Task, bool) {
-	isTask, _ := regexp.MatchString(taskPattern, line)
-	if isTask {
+	completedTask, _ := regexp.MatchString(completedTaskPattern, line)
+	incompletedTask, _ := regexp.MatchString(incompletedTaskPattern, line)
+	if completedTask || incompletedTask {
 		return &Task{
+			Complete: completedTask,
 			Date:     date,
 			FilePath: filePath,
 			Text:     line,
@@ -179,6 +183,6 @@ func (tasks Tasks) WriteToFile(outputFilename string) {
 	}
 	defer file.Close()
 
-	fmt.Printf("writing to file '%s'\n", outputFilename)
+	fmt.Printf("writing %d tasks to file '%s'\n", len(tasks), outputFilename)
 	file.WriteString(tasks.String())
 }
