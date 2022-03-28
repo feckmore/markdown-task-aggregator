@@ -17,6 +17,7 @@ import (
 
 type File struct {
 	Date *time.Time
+	Name string
 	Path string
 }
 
@@ -31,12 +32,15 @@ const (
 	datePattern             = `^(\d{4}-\d{2}-\d{2})`
 	dateHeaderPattern       = `^\#+\s+(\d{4}-\d{2}-\d{2})`
 	markdownFilenamePattern = `(?i).md$`
+	outputFilename          = `TASKS.md`
 	taskPattern             = `^\s*[-|+|\*]?\s*\[x|\s\]`
 	rootPath                = "."
 	yearMonthDayLayout      = "2006-01-02"
 )
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Llongfile)
+
 	tasks := Tasks{}
 	for _, filePath := range markdownFilePaths(rootPath) {
 		tasks = append(tasks, findTasks(filePath)...)
@@ -46,7 +50,7 @@ func main() {
 		return tasks[i].Date.Unix() < tasks[j].Date.Unix()
 	})
 
-	printTasks(tasks)
+	tasks.WriteToFile()
 }
 
 func markdownFilePaths(dirPath string) []File {
@@ -65,7 +69,7 @@ func markdownFilePaths(dirPath string) []File {
 		} else {
 			isMarkdownFile, _ := regexp.MatchString(markdownFilenamePattern, filename)
 			if isMarkdownFile {
-				paths = append(paths, File{Date: date, Path: filePath})
+				paths = append(paths, File{Date: date, Name: file.Name(), Path: filePath})
 			}
 		}
 	}
@@ -75,6 +79,10 @@ func markdownFilePaths(dirPath string) []File {
 
 func findTasks(file File) Tasks {
 	tasks := Tasks{}
+	if file.Name == outputFilename {
+		return tasks
+	}
+
 	readFile, err := os.Open(file.Path)
 	if err != nil {
 		return tasks
@@ -140,10 +148,33 @@ func parseTask(date time.Time, filePath, line string) (*Task, bool) {
 	return nil, false
 }
 
-func printTasks(tasks Tasks) {
+func (tasks Tasks) String() string {
+	var out strings.Builder
+	lastDate := time.Time{}
 	for _, task := range tasks {
-		fmt.Println(task.Date.Format(yearMonthDayLayout), strings.TrimLeft(task.Text, " *-+"))
+		// if new day, make a date header
+		if task.Date.Format(yearMonthDayLayout) != lastDate.Format(yearMonthDayLayout) {
+			// new line before date header if not beginning of file
+			if !lastDate.IsZero() {
+				out.WriteString("\n")
+			}
+			lastDate = task.Date
+			out.WriteString(fmt.Sprintf("# %s\n\n", task.Date.Format(yearMonthDayLayout)))
+		}
+		out.WriteString(fmt.Sprintf("- %s\n", strings.TrimLeft(task.Text, " *-+")))
 	}
 
-	fmt.Println("Total:", len(tasks))
+	return out.String()
+}
+
+func (tasks Tasks) WriteToFile() {
+	file, err := os.Create(outputFilename)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer file.Close()
+
+	fmt.Println("writing to file", outputFilename)
+	file.WriteString(tasks.String())
 }
