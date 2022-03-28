@@ -34,7 +34,7 @@ const (
 	dateHeaderPattern       = `^\#+\s+(\d{4}-\d{2}-\d{2})`
 	markdownFilenamePattern = `(?i).md$`
 	defaultOutputFilename   = `TASKS.md`
-	taskPattern             = `^\s*[-|+|\*]?\s*\[x|\s\]`
+	taskPattern             = `^\s*[-|+|\*]?\s*\[[x|\s]\]`
 	rootPath                = "."
 	yearMonthDayLayout      = "2006-01-02"
 )
