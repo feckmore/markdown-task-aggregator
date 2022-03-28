@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io/fs"
 	"io/ioutil"
@@ -32,7 +33,7 @@ const (
 	datePattern             = `^(\d{4}-\d{2}-\d{2})`
 	dateHeaderPattern       = `^\#+\s+(\d{4}-\d{2}-\d{2})`
 	markdownFilenamePattern = `(?i).md$`
-	outputFilename          = `TASKS.md`
+	defaultOutputFilename   = `TASKS.md`
 	taskPattern             = `^\s*[-|+|\*]?\s*\[x|\s\]`
 	rootPath                = "."
 	yearMonthDayLayout      = "2006-01-02"
@@ -40,6 +41,9 @@ const (
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Llongfile)
+
+	outputFilename := flag.String("o", defaultOutputFilename, "output filename")
+	flag.Parse()
 
 	tasks := Tasks{}
 	for _, filePath := range markdownFilePaths(rootPath) {
@@ -50,7 +54,7 @@ func main() {
 		return tasks[i].Date.Unix() < tasks[j].Date.Unix()
 	})
 
-	tasks.WriteToFile()
+	tasks.WriteToFile(*outputFilename)
 }
 
 func markdownFilePaths(dirPath string) []File {
@@ -79,7 +83,7 @@ func markdownFilePaths(dirPath string) []File {
 
 func findTasks(file File) Tasks {
 	tasks := Tasks{}
-	if file.Name == outputFilename {
+	if file.Name == defaultOutputFilename {
 		return tasks
 	}
 
@@ -167,7 +171,7 @@ func (tasks Tasks) String() string {
 	return out.String()
 }
 
-func (tasks Tasks) WriteToFile() {
+func (tasks Tasks) WriteToFile(outputFilename string) {
 	file, err := os.Create(outputFilename)
 	if err != nil {
 		log.Println(err)
@@ -175,6 +179,6 @@ func (tasks Tasks) WriteToFile() {
 	}
 	defer file.Close()
 
-	fmt.Println("writing to file", outputFilename)
+	fmt.Printf("writing to file '%s'\n", outputFilename)
 	file.WriteString(tasks.String())
 }
