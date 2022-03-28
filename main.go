@@ -56,7 +56,17 @@ func main() {
 		return tasks[i].Date.Unix() < tasks[j].Date.Unix()
 	})
 
-	tasks.WriteToFile(*outputFilename)
+	tasks.writeToFile(*outputFilename)
+}
+
+func (tasks Tasks) completedCount() int {
+	count := 0
+	for _, task := range tasks {
+		if task.Complete {
+			count++
+		}
+	}
+	return count
 }
 
 func findTasks(file File) Tasks {
@@ -85,16 +95,6 @@ func findTasks(file File) Tasks {
 	}
 
 	return tasks
-}
-
-func (tasks Tasks) CompletedCount() int {
-	count := 0
-	for _, task := range tasks {
-		if task.Complete {
-			count++
-		}
-	}
-	return count
 }
 
 func markdownFilePaths(dirPath string) []File {
@@ -185,7 +185,7 @@ func (tasks Tasks) String() string {
 	return out.String()
 }
 
-func (tasks Tasks) WriteToFile(outputFilename string) {
+func (tasks Tasks) writeToFile(outputFilename string) {
 	file, err := os.Create(outputFilename)
 	if err != nil {
 		log.Println(err)
@@ -193,6 +193,6 @@ func (tasks Tasks) WriteToFile(outputFilename string) {
 	}
 	defer file.Close()
 
-	fmt.Printf("%d complted out of %d total tasks, writing to file '%s'\n", tasks.CompletedCount(), len(tasks), outputFilename)
+	fmt.Printf("%d completed out of %d total tasks, writing to file '%s'\n", tasks.completedCount(), len(tasks), outputFilename)
 	file.WriteString(tasks.String())
 }
