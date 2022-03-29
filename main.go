@@ -24,19 +24,21 @@ type File struct {
 
 type Tasks []Task
 type Task struct {
-	Complete bool
-	Date     time.Time
-	FilePath string
-	Text     string
+	Complete       bool
+	Date           time.Time
+	FilePath       string
+	PreviousHeader string
+	Text           string
 }
 
 const (
+	completeTaskPattern     = `(?i)^\s*[-|+|\*]?\s*\[x\]`
 	datePattern             = `^(\d{4}-\d{2}-\d{2})`
 	dateHeaderPattern       = `^\#+\s+(\d{4}-\d{2}-\d{2})`
-	markdownFilenamePattern = `(?i).md$`
 	defaultOutputFilename   = `TASKS.md`
-	completeTaskPattern     = `(?i)^\s*[-|+|\*]?\s*\[x\]`
+	headerPattern           = `^\s*\#+\s+`
 	incompleteTaskPattern   = `^\s*[-|+|\*]?\s*\[\s+\]`
+	markdownFilenamePattern = `(?i).md$`
 	rootPath                = "."
 	yearMonthDayLayout      = "2006-01-02"
 )
@@ -82,14 +84,16 @@ func findTasks(file File) Tasks {
 	defer readFile.Close()
 
 	date := file.Date
+	lastHeader := ""
 	fileScanner := bufio.NewScanner(readFile)
 	fileScanner.Split(bufio.ScanLines)
 
 	for fileScanner.Scan() {
 		line := fileScanner.Text()
 		date = parseDate(dateHeaderPattern, line, date)
+		lastHeader = parseLastHeader(line, lastHeader)
 
-		if task, isTask := parseTask(*date, file.Path, line); isTask {
+		if task, isTask := parseTask(*date, lastHeader, file.Path, line); isTask {
 			tasks = append(tasks, *task)
 		}
 	}
@@ -135,6 +139,15 @@ func parseDate(pattern, text string, lastDate *time.Time) *time.Time {
 	return lastDate
 }
 
+func parseLastHeader(line, lastHeader string) string {
+	isHeader, _ := regexp.MatchString(headerPattern, line)
+	if isHeader {
+		return strings.TrimLeft(line, "# ")
+	}
+	return lastHeader
+
+}
+
 func parseDateFromFile(file fs.FileInfo) *time.Time {
 	var date *time.Time
 	if result := parseDate(datePattern, file.Name(), date); result != nil {
@@ -150,16 +163,17 @@ func parseDateFromFile(file fs.FileInfo) *time.Time {
 	return date
 }
 
-func parseTask(date time.Time, filePath, line string) (*Task, bool) {
+func parseTask(date time.Time, lastHeader, filePath, line string) (*Task, bool) {
 	completeTask, _ := regexp.MatchString(completeTaskPattern, line)
 	incompleteTask, _ := regexp.MatchString(incompleteTaskPattern, line)
 	if completeTask || incompleteTask {
 		text := strings.TrimSpace(line[strings.Index(line, "]")+1:])
 		return &Task{
-			Complete: completeTask,
-			Date:     date,
-			FilePath: filePath,
-			Text:     text,
+			Complete:       completeTask,
+			Date:           date,
+			FilePath:       filePath,
+			PreviousHeader: lastHeader,
+			Text:           text,
 		}, true
 
 	}
@@ -184,8 +198,11 @@ func (tasks Tasks) String() string {
 		if task.Complete {
 			check = "x"
 		}
-		fmt.Println(task.Text)
-		out.WriteString(fmt.Sprintf("- [%s] [%s](%s)\n", check, task.Text, path.Join("/", task.FilePath)))
+		taskPath := path.Join("/", task.FilePath)
+		if task.PreviousHeader != "" {
+			taskPath = fmt.Sprintf("%s#%s", taskPath, task.PreviousHeader)
+		}
+		out.WriteString(fmt.Sprintf("- [%s] [%s](%s)\n", check, task.Text, taskPath))
 	}
 
 	return out.String()
