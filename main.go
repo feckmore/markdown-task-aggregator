@@ -35,8 +35,8 @@ const (
 	dateHeaderPattern       = `^\#+\s+(\d{4}-\d{2}-\d{2})`
 	markdownFilenamePattern = `(?i).md$`
 	defaultOutputFilename   = `TASKS.md`
-	completedTaskPattern    = `(?i)^\s*[-|+|\*]?\s*\[x\]`
-	incompletedTaskPattern  = `^\s*[-|+|\*]?\s*\[\s+\]`
+	completeTaskPattern     = `(?i)^\s*[-|+|\*]?\s*\[x\]`
+	incompleteTaskPattern   = `^\s*[-|+|\*]?\s*\[\s+\]`
 	rootPath                = "."
 	yearMonthDayLayout      = "2006-01-02"
 )
@@ -151,14 +151,15 @@ func parseDateFromFile(file fs.FileInfo) *time.Time {
 }
 
 func parseTask(date time.Time, filePath, line string) (*Task, bool) {
-	completedTask, _ := regexp.MatchString(completedTaskPattern, line)
-	incompletedTask, _ := regexp.MatchString(incompletedTaskPattern, line)
-	if completedTask || incompletedTask {
+	completeTask, _ := regexp.MatchString(completeTaskPattern, line)
+	incompleteTask, _ := regexp.MatchString(incompleteTaskPattern, line)
+	if completeTask || incompleteTask {
+		text := strings.TrimSpace(line[strings.Index(line, "]")+1:])
 		return &Task{
-			Complete: completedTask,
+			Complete: completeTask,
 			Date:     date,
 			FilePath: filePath,
-			Text:     line,
+			Text:     text,
 		}, true
 
 	}
@@ -179,7 +180,12 @@ func (tasks Tasks) String() string {
 			lastDate = task.Date
 			out.WriteString(fmt.Sprintf("# %s\n\n", task.Date.Format(yearMonthDayLayout)))
 		}
-		out.WriteString(fmt.Sprintf("- %s\n", strings.TrimLeft(task.Text, " *-+")))
+		check := " "
+		if task.Complete {
+			check = "x"
+		}
+		fmt.Println(task.Text)
+		out.WriteString(fmt.Sprintf("- [%s] [%s](%s)\n", check, task.Text, path.Join("/", task.FilePath)))
 	}
 
 	return out.String()
