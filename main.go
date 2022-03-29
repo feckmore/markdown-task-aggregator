@@ -14,6 +14,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode"
 )
 
 type File struct {
@@ -198,14 +199,23 @@ func (tasks Tasks) String() string {
 		if task.Complete {
 			check = "x"
 		}
-		taskPath := path.Join("/", task.FilePath)
-		if task.PreviousHeader != "" {
-			taskPath = fmt.Sprintf("%s#%s", taskPath, task.PreviousHeader)
-		}
-		out.WriteString(fmt.Sprintf("- [%s] [%s](%s)\n", check, task.Text, taskPath))
+
+		out.WriteString(fmt.Sprintf("- [%s] [%s](%s)\n", check, task.Text, taskPath(task.FilePath, task.PreviousHeader)))
 	}
 
 	return out.String()
+}
+
+func taskPath(filePath, lastHeader string) string {
+	f := func(c rune) bool {
+		return !unicode.IsLetter(c) && !unicode.IsDigit(c)
+	}
+	taskPath := filePath
+	if lastHeader != "" {
+		taskPath = fmt.Sprintf("%s#%s", filePath, strings.Join(strings.FieldsFunc(lastHeader, f), "-"))
+	}
+
+	return taskPath
 }
 
 func (tasks Tasks) writeToFile(outputFilename string) {
