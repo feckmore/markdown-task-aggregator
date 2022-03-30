@@ -23,7 +23,11 @@ type File struct {
 	Path string
 }
 
-type Tasks []Task
+type Tasks struct {
+	OutputCompleted bool
+	Tasks           []Task
+}
+
 type Task struct {
 	Complete       bool
 	Date           time.Time
@@ -47,16 +51,19 @@ const (
 func main() {
 	log.SetFlags(log.LstdFlags | log.Llongfile)
 
-	outputFilename := flag.String("o", defaultOutputFilename, "output filename")
-	flag.Parse()
-
 	tasks := Tasks{}
+	outputCompletedPtr := flag.Bool("c", false, "true to output completed tasks (default=false)")
+	outputFilename := flag.String("o", defaultOutputFilename, fmt.Sprintf("name of markdown file to output (default=%s)", defaultOutputFilename))
+
+	flag.Parse()
+	tasks.OutputCompleted = *outputCompletedPtr
+
 	for _, filePath := range markdownFilePaths(rootPath) {
-		tasks = append(tasks, findTasks(filePath)...)
+		tasks.Tasks = append(tasks.Tasks, findTasks(filePath)...)
 	}
 	// Sort by date, keeping original order or equal elements.
-	sort.SliceStable(tasks, func(i, j int) bool {
-		return tasks[i].Date.Unix() < tasks[j].Date.Unix()
+	sort.SliceStable(tasks.Tasks, func(i, j int) bool {
+		return tasks.Tasks[i].Date.Unix() < tasks.Tasks[j].Date.Unix()
 	})
 
 	tasks.writeToFile(*outputFilename)
@@ -64,7 +71,7 @@ func main() {
 
 func (tasks Tasks) completedCount() int {
 	count := 0
-	for _, task := range tasks {
+	for _, task := range tasks.Tasks {
 		if task.Complete {
 			count++
 		}
@@ -72,8 +79,8 @@ func (tasks Tasks) completedCount() int {
 	return count
 }
 
-func findTasks(file File) Tasks {
-	tasks := Tasks{}
+func findTasks(file File) []Task {
+	tasks := []Task{}
 	if file.Name == defaultOutputFilename {
 		return tasks
 	}
@@ -100,6 +107,10 @@ func findTasks(file File) Tasks {
 	}
 
 	return tasks
+}
+
+func (tasks Tasks) incompleteCount() int {
+	return len(tasks.Tasks) - tasks.completedCount()
 }
 
 func markdownFilePaths(dirPath string) []File {
@@ -185,7 +196,11 @@ func parseTask(date time.Time, lastHeader, filePath, line string) (*Task, bool) 
 func (tasks Tasks) String() string {
 	var out strings.Builder
 	lastDate := time.Time{}
-	for _, task := range tasks {
+	for _, task := range tasks.Tasks {
+		if task.Complete && !tasks.OutputCompleted {
+			continue
+		}
+
 		// if new day, make a date header
 		if task.Date.Format(yearMonthDayLayout) != lastDate.Format(yearMonthDayLayout) {
 			// new line before date header if not beginning of file
@@ -226,6 +241,6 @@ func (tasks Tasks) writeToFile(outputFilename string) {
 	}
 	defer file.Close()
 
-	fmt.Printf("%d completed out of %d total tasks, writing to file '%s'\n", tasks.completedCount(), len(tasks), outputFilename)
+	fmt.Printf("%d incomplete out of %d total tasks, writing to file '%s'\n", tasks.incompleteCount(), len(tasks.Tasks), outputFilename)
 	file.WriteString(tasks.String())
 }
